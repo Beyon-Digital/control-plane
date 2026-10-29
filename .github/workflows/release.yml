@@ -1,0 +1,71 @@
+name: Prepare signed release
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        description: Release platform
+        type: choice
+        options: [macos, windows, linux, ios]
+        required: true
+      build_number:
+        description: Monotonic numeric release sequence
+        required: true
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: release-${{ inputs.platform }}-${{ inputs.build_number }}
+  cancel-in-progress: false
+jobs:
+  prepare:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    environment: release
+    runs-on: ${{ fromJSON('{"macos":["self-hosted","macOS","release-signing"],"ios":["self-hosted","macOS","release-signing"],"windows":["self-hosted","Windows","release-signing"],"linux":["self-hosted","Linux","release-signing"]}')[inputs.platform] }}
+    timeout-minutes: 120
+    env:
+      RELEASE_PLATFORM: ${{ inputs.platform }}
+      BUILD_NUMBER: ${{ inputs.build_number }}
+      CONTROL_PLANE_UPDATE_PUBLIC_KEY: ${{ vars.CONTROL_PLANE_UPDATE_PUBLIC_KEY }}
+      CONTROL_PLANE_UPDATE_FEED: ${{ inputs.platform == 'macos' && vars.MACOS_UPDATE_FEED || inputs.platform == 'windows' && vars.WINDOWS_UPDATE_FEED || vars.LINUX_UPDATE_FEED }}
+      CONTROL_PLANE_UPDATE_SIGNING_KEY: ${{ inputs.platform == 'windows' && vars.WINDOWS_UPDATE_SIGNING_KEY || inputs.platform == 'macos' && vars.MACOS_UPDATE_SIGNING_KEY || vars.LINUX_UPDATE_SIGNING_KEY }}
+      CONTROL_PLANE_ARTIFACT_BASE_URL: ${{ vars.CONTROL_PLANE_ARTIFACT_BASE_URL }}
+      MACOS_SIGNING_IDENTITY: ${{ vars.MACOS_SIGNING_IDENTITY }}
+      MACOS_INSTALLER_IDENTITY: ${{ vars.MACOS_INSTALLER_IDENTITY }}
+      MACOS_PROVISIONING_PROFILE: ${{ vars.MACOS_PROVISIONING_PROFILE }}
+      APPLE_NOTARY_PROFILE: ${{ vars.APPLE_NOTARY_PROFILE }}
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+      IOS_SIGNING_IDENTITY: ${{ vars.IOS_SIGNING_IDENTITY }}
+      IOS_PROFILE_SPECIFIER: ${{ vars.IOS_PROFILE_SPECIFIER }}
+      IOS_EXPORT_OPTIONS_PLIST: ${{ vars.IOS_EXPORT_OPTIONS_PLIST }}
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+      WINDOWS_CERT_THUMBPRINT: ${{ vars.WINDOWS_CERT_THUMBPRINT }}
+      CONTROL_PLANE_PUBLISHER: ${{ vars.CONTROL_PLANE_PUBLISHER }}
+      FFMPEG_PATH: ${{ vars.FFMPEG_PATH }}
+      FFMPEG_SHA256: ${{ vars.FFMPEG_SHA256 }}
+      FFMPEG_LICENSE_FILE: ${{ vars.FFMPEG_LICENSE_FILE }}
+      NODE_RUNTIME_PATH: ${{ inputs.platform == 'windows' && vars.WINDOWS_NODE_RUNTIME_PATH || inputs.platform == 'macos' && vars.MACOS_NODE_RUNTIME_PATH || vars.LINUX_NODE_RUNTIME_PATH }}
+      NODE_SHA256: ${{ inputs.platform == 'windows' && vars.WINDOWS_NODE_SHA256 || inputs.platform == 'macos' && vars.MACOS_NODE_SHA256 || vars.LINUX_NODE_SHA256 }}
+      PACKAGE_MAINTAINER: ${{ vars.PACKAGE_MAINTAINER }}
+    steps:
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          persist-credentials: false
+      - name: Prepare Mac, Linux, or iOS artifacts
+        if: inputs.platform != 'windows'
+        shell: bash
+        run: |
+          case "$RELEASE_PLATFORM" in
+            macos|linux|ios) sh "scripts/release/$RELEASE_PLATFORM.sh" ;;
+            *) exit 1 ;;
+          esac
+      - name: Prepare Windows artifacts
+        if: inputs.platform == 'windows'
+        shell: pwsh
+        run: ./scripts/release/windows.ps1
+      - name: Preserve artifacts for review
+        uses: actions/upload-artifact@v4
+        with:
+          name: control-plane-${{ inputs.platform }}-${{ inputs.build_number }}
+          path: dist/
+          if-no-files-found: error
+          retention-days: 14

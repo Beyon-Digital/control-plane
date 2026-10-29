@@ -1,0 +1,36 @@
+name: Physical iPhone acceptance
+on:
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: physical-iphone
+  cancel-in-progress: false
+jobs:
+  iphone:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    environment: device-acceptance
+    runs-on: [self-hosted, macOS, control-plane-iphone]
+    timeout-minutes: 45
+    env:
+      IOS_TEAM_ID: ${{ vars.IOS_TEAM_ID }}
+      IOS_TEST_DEVICE_UDID: ${{ vars.IOS_TEST_DEVICE_UDID }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - name: Require configured physical device
+        shell: bash
+        run: |
+          test -n "$IOS_TEAM_ID" || { echo 'Set IOS_TEAM_ID in device-acceptance'; exit 1; }
+          test -n "$IOS_TEST_DEVICE_UDID" || { echo 'Set IOS_TEST_DEVICE_UDID in device-acceptance'; exit 1; }
+      - name: Run logic and UI tests on the exact paired iPhone
+        run: python3 scripts/test-ios.py --device "$IOS_TEST_DEVICE_UDID" --result-path "build/iphone-${{ github.run_id }}-${{ github.run_attempt }}/result.xcresult"
+      - name: Preserve physical-device evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: physical-iphone-results
+          path: build/iphone-*/*.xcresult
+          if-no-files-found: warn
+          retention-days: 7

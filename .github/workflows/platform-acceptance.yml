@@ -1,0 +1,66 @@
+name: Desktop and WSL acceptance
+on:
+  workflow_dispatch:
+    inputs:
+      platform:
+        type: choice
+        options: [macos, windows, gnome]
+        required: true
+      minimum_displays:
+        type: choice
+        options: ['1', '2']
+        default: '1'
+        required: true
+      wsl_distribution:
+        description: Explicit WSL2 distribution (required for Windows)
+        type: string
+permissions:
+  contents: read
+concurrency:
+  group: desktop-acceptance-${{ inputs.platform }}
+  cancel-in-progress: false
+jobs:
+  observe:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    environment: platform-acceptance
+    runs-on: ${{ fromJSON('{"macos":["self-hosted","macOS","control-plane-desktop"],"windows":["self-hosted","Windows","control-plane-desktop"],"gnome":["self-hosted","Linux","gnome-wayland","control-plane-desktop"]}')[inputs.platform] }}
+    timeout-minutes: 25
+    env:
+      ACCEPTANCE_PLATFORM: ${{ inputs.platform }}
+      MINIMUM_DISPLAYS: ${{ inputs.minimum_displays }}
+      WSL_DISTRIBUTION: ${{ inputs.wsl_distribution }}
+      WSL_TEST_USER: ${{ vars.WSL_TEST_USER }}
+      SIGNING_IDENTITY: ${{ vars.MACOS_DESKTOP_SIGNING_IDENTITY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: dtolnay/rust-toolchain@stable
+      - run: cargo build --workspace --locked
+      - name: Build the signed Mac helper
+        if: inputs.platform == 'macos'
+        run: sh helpers/macos/build.sh
+      - name: Observe actual capture, accessibility, and decoded video
+        shell: python
+        run: |
+          import os, subprocess
+          subprocess.run(['python', 'scripts/desktop-acceptance.py', '--platform', os.environ['ACCEPTANCE_PLATFORM'], '--minimum-displays', os.environ['MINIMUM_DISPLAYS'], '--report-path', 'build/platform-acceptance/desktop.json'], check=True)
+      - name: Check actual Windows-to-WSL2 routing and Linux process ownership
+        if: always() && inputs.platform == 'windows'
+        shell: python
+        run: |
+          import os, subprocess
+          if not os.environ.get('WSL_DISTRIBUTION') or not os.environ.get('WSL_TEST_USER'):
+              raise SystemExit('Configure an explicit WSL2 distribution and WSL_TEST_USER')
+          subprocess.run(['python', 'scripts/wsl-live-smoke.py', '--distribution', os.environ['WSL_DISTRIBUTION'], '--user', os.environ['WSL_TEST_USER'], '--report-path', 'build/platform-acceptance/wsl.json'], check=True)
+      - name: Preserve sanitized gate reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: platform-acceptance-${{ inputs.platform }}
+          path: build/platform-acceptance/*.json
+          if-no-files-found: warn
+          retention-days: 14

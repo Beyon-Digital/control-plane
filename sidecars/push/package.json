@@ -1,0 +1,8 @@
+{
+  "name": "@control-plane/push-gateway",
+  "private": true,
+  "type": "module",
+  "version": "0.1.0",
+  "scripts": {"start": "node server.mjs", "test": "node --test"},
+  "engines": {"node": ">=22"}
+}

@@ -1,0 +1,17 @@
+{
+  "name": "@control-plane/claude-sidecar",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "check": "node --check src/index.mjs",
+    "build": "node scripts/build.mjs",
+    "start": "node src/index.mjs"
+  },
+  "dependencies": {
+    "@anthropic-ai/claude-agent-sdk": "0.2.141"
+  },
+  "engines": {
+    "node": ">=22"
+  }
+}

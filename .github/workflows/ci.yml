@@ -1,0 +1,80 @@
+name: Verify
+on: [push, pull_request, workflow_dispatch]
+permissions:
+  contents: read
+concurrency:
+  group: verify-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  host:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [macos-latest, ubuntu-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: rustfmt, clippy
+      - uses: Swatinem/rust-cache@v2
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - run: cargo fmt --all --check
+      - run: cargo test --workspace --locked
+      - run: cargo build --workspace --locked
+      - if: runner.os == 'Linux'
+        run: sudo python3 scripts/broker-os-smoke.py --binary target/debug/control-plane-host --broker target/debug/control-plane-broker --allow-user-switch
+      - if: runner.os == 'Linux'
+        run: python3 scripts/wsl_bridge_test.py
+      - if: runner.os == 'Linux'
+        run: python3 scripts/install_worker_test.py
+      - if: runner.os == 'Linux'
+        run: python3 -m unittest discover -s helpers/windows -p 'test_*.py'
+      - run: python3 scripts/wsl_transfer_test.py
+      - run: python3 scripts/acceptance_test.py
+      - run: python3 -m unittest discover -s helpers/linux/tests
+      - run: python3 -m unittest discover -s scripts/release/tests
+      - run: cargo clippy --workspace --all-targets --locked -- -D warnings
+  apple:
+    runs-on: macos-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+      - name: Prepare native fixture and Metal compiler
+        run: |
+          cargo build --workspace --locked
+          if ! xcrun metal --version; then xcodebuild -downloadComponent MetalToolchain; fi
+      - run: python3 scripts/native-grpc-smoke.py --all-tests
+      - run: swift build --package-path apple
+      - run: sh helpers/macos/build.sh
+      - run: python3 scripts/smoke.py
+      - run: python3 scripts/drain_smoke.py
+      - name: iPhone simulator unit and UI acceptance
+        run: python3 scripts/test-ios.py --preview-host --result-path build/ci-ios/result.xcresult
+      - name: Preserve simulator evidence
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-results
+          path: build/ci-ios/*.xcresult
+          if-no-files-found: warn
+          retention-days: 14
+  claude:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: sidecars/claude/package-lock.json
+      - run: npm ci --ignore-scripts
+        working-directory: sidecars/claude
+      - run: npm run build
+        working-directory: sidecars/claude
+      - run: node --test sidecars/push/server.test.mjs

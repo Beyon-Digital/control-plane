@@ -1,0 +1,54 @@
+syntax = "proto3";
+package controlplane.v1;
+
+// Opaque JSON payloads retain provider extensions while domain envelopes stay versioned.
+message Empty {}
+message Document { string json = 1; }
+message SessionRef { string session_id = 1; }
+message ExecutionTarget {
+  // Empty or "native" selects the host. "wsl" requires an allowlisted distribution.
+  string kind = 1;
+  string distribution = 2;
+}
+message CreateSessionRequest {
+  string provider = 1;
+  string workspace = 2;
+  string title = 3;
+  bool trusted = 4;
+  string request_id = 5;
+  ExecutionTarget execution_target = 6;
+}
+message PromptRequest { string session_id = 1; string text = 2; string request_id = 3; }
+message SubscribeRequest { string session_id = 1; uint64 after = 2; }
+message Event {
+  uint64 sequence = 1;
+  string session_id = 2;
+  string kind = 3;
+  string payload_json = 4;
+  int64 created_at = 5;
+}
+message WorkspaceRequest { string session_id = 1; string path = 2; }
+message WriteRequest { string session_id = 1; string path = 2; string content = 3; string expected_sha256 = 4; }
+message DecisionRequest { string session_id = 1; string request_id = 2; string decision = 3; }
+message APICallRequest { string method = 1; string path = 2; string query_json = 3; string body_json = 4; }
+
+service HostService {
+  rpc Call(APICallRequest) returns (Document);
+  rpc GetHost(Empty) returns (Document);
+  rpc EmergencyStop(Empty) returns (Document);
+}
+service SessionService {
+  rpc List(Empty) returns (Document);
+  rpc Create(CreateSessionRequest) returns (Document);
+  rpc Prompt(PromptRequest) returns (Document);
+  rpc Interrupt(SessionRef) returns (Document);
+  rpc Archive(SessionRef) returns (Document);
+  rpc Decide(DecisionRequest) returns (Document);
+  rpc Subscribe(SubscribeRequest) returns (stream Event);
+}
+service WorkspaceService {
+  rpc List(WorkspaceRequest) returns (Document);
+  rpc Read(WorkspaceRequest) returns (Document);
+  rpc Write(WriteRequest) returns (Document);
+  rpc Diff(SessionRef) returns (Document);
+}

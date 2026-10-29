@@ -1,0 +1,16 @@
+[Unit]
+Description=Control Plane Wayland desktop portal helper
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/share/control-plane/venv/bin/python %h/.local/share/control-plane/linux/wayland_helper.py --daemon
+Restart=on-failure
+RestartSec=3
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+
+[Install]
+WantedBy=graphical-session.target

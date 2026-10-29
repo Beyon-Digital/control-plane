@@ -19,6 +19,15 @@ final class ControlPlaneSmokeTests: XCTestCase {
     row.tap()
   }
 
+  @MainActor private func findModel(_ title: String, in app: XCUIApplication) -> Bool {
+    let row = app.staticTexts[title].firstMatch
+    for _ in 0..<8 {
+      if row.waitForExistence(timeout: 1) { return true }
+      app.swipeUp()
+    }
+    return row.exists
+  }
+
   @MainActor func testConnectedSessionNavigation() throws {
     let environment = ProcessInfo.processInfo.environment
     guard let url = environment["CONTROL_PLANE_UI_HOST_URL"], let token = environment["CONTROL_PLANE_UI_HOST_TOKEN"], let sessionID = environment["CONTROL_PLANE_UI_SESSION_ID"] else {
@@ -81,11 +90,11 @@ final class ControlPlaneSmokeTests: XCTestCase {
     let save = app.buttons["model.save"]
     XCTAssertTrue(save.isEnabled)
     save.tap()
-    XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 5))
+    XCTAssertTrue(findModel(title, in: app))
     app.terminate()
     app.launch()
     openModels(app)
-    XCTAssertTrue(app.staticTexts[title].firstMatch.waitForExistence(timeout: 5))
+    XCTAssertTrue(findModel(title, in: app))
     app.terminate()
   }
 

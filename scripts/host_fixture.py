@@ -27,7 +27,7 @@ def free_ports():
 
 @contextmanager
 def native_host(host_ip=None, preview=False):
-    with tempfile.TemporaryDirectory(prefix="control-plane-native-") as directory:
+    with tempfile.TemporaryDirectory(prefix="control-plane-native-", dir="/private/tmp" if pathlib.Path("/private/tmp").is_dir() else None) as directory:
         root = pathlib.Path(directory)
         project = root / "ControlPlane"
         project.mkdir()

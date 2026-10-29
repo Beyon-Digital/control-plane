@@ -1,4 +1,7 @@
 import SwiftUI
+#if os(iOS)
+import UIKit
+#endif
 #if canImport(ControlPlaneKit)
 import ControlPlaneKit
 #endif
@@ -61,7 +64,6 @@ import ControlPlaneKit
                 } header: { Text("Permissions") } footer: {
                     Text("Grants the agent and terminal this machine account's full access. Other sessions keep the provider's normal approvals.")
                 }
-                if let error { Section { Text(error).foregroundStyle(.red) } }
             }
             .navigationTitle("New session")
             #if os(iOS)
@@ -70,9 +72,12 @@ import ControlPlaneKit
             #endif
             .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Cancel") { dismiss() }.accessibilityIdentifier("session.create.cancel") } }
             .safeAreaInset(edge: .bottom) {
-                Button { create() } label: { Text(busy ? "Creating…" : "Create session").frame(maxWidth: .infinity, minHeight: 28) }
+                VStack(alignment: .leading, spacing: 12) {
+                    if let error { Text(error).font(.callout).foregroundStyle(.red).fixedSize(horizontal: false, vertical: true) }
+                    Button { create() } label: { Text(busy ? "Creating…" : "Create session").frame(maxWidth: .infinity, minHeight: 28) }
                     .buttonStyle(.borderedProminent).controlSize(.large)
-                    .disabled(!canCreate).padding().background(.bar)
+                    .disabled(!canCreate)
+                }.padding().background(.bar)
             }
             .task {
                 do {
@@ -100,6 +105,9 @@ import ControlPlaneKit
         #endif
     }
     private func create() {
+        #if os(iOS)
+        UIApplication.shared.sendAction(#selector(UIResponder.resignFirstResponder), to: nil, from: nil, for: nil)
+        #endif
         busy = true; error = nil
         Task {
             defer { busy = false }

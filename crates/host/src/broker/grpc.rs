@@ -197,15 +197,23 @@ mod tests {
     use super::*;
     #[tokio::test]
     async fn malformed_tokens_and_exhausted_capacity_do_not_open_worker_channels() {
+        #[cfg(unix)]
+        let endpoint = crate::ipc::Endpoint::Unix {
+            http_socket: "/unused/http.sock".into(),
+            grpc_socket: "/unused/grpc.sock".into(),
+            uid: 1,
+        };
+        #[cfg(windows)]
+        let endpoint = crate::ipc::Endpoint::NamedPipe {
+            http_pipe: r"\\.\pipe\control-plane-test-http".into(),
+            grpc_pipe: r"\\.\pipe\control-plane-test-grpc".into(),
+            sid: "S-1-5-18".into(),
+        };
         let state = Broker::new(super::super::Config {
             accounts: vec![super::super::Account {
                 id: "alice".into(),
                 name: "Alice".into(),
-                endpoint: crate::ipc::Endpoint::Unix {
-                    http_socket: "/unused/http.sock".into(),
-                    grpc_socket: "/unused/grpc.sock".into(),
-                    uid: 1,
-                },
+                endpoint,
             }],
         })
         .unwrap();

@@ -23,6 +23,17 @@ jobs:
         with:
           python-version: '3.12'
       - run: cargo fmt --all --check
+      - name: Inspect Windows temporary directory security
+        if: runner.os == 'Windows'
+        shell: pwsh
+        run: |
+          $item = Get-Item -LiteralPath ([System.IO.Path]::GetTempPath())
+          while ($item) {
+            $acl = Get-Acl -LiteralPath $item.FullName
+            Write-Output "Path: $($item.FullName); Owner: $($acl.Owner)"
+            $acl.Access | Format-Table IdentityReference, FileSystemRights, AccessControlType, IsInherited -AutoSize | Out-String | Write-Output
+            $item = $item.Parent
+          }
       - run: cargo test --workspace --locked
       - run: cargo build --workspace --locked
       - if: runner.os == 'Linux'

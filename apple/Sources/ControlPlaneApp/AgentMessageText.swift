@@ -46,7 +46,11 @@ private struct AgentCodeBlock: View {
                 }.font(.caption.weight(.medium)).buttonStyle(.plain).frame(minWidth: 44, minHeight: 44).accessibilityLabel(copied ? "Code copied" : "Copy code")
             }.padding(.horizontal, 12)
             Divider()
-            ScrollView(.horizontal) { Text(pieces.1).font(.system(.subheadline, design: .monospaced)).textSelection(.enabled).padding(12) }
+            ScrollView(.horizontal) {
+                Text(pieces.1).font(.system(.subheadline, design: .monospaced))
+                    .lineLimit(nil).fixedSize(horizontal: true, vertical: true)
+                    .textSelection(.enabled).padding(12)
+            }
         }.background(.quaternary, in: RoundedRectangle(cornerRadius: 12))
             .onChange(of: content) { _, _ in copied = false }
     }

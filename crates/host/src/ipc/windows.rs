@@ -260,12 +260,18 @@ fn trusted_sid(sid: &str, current: &str) -> bool {
     sid == current || sid == "S-1-5-18" || sid == "S-1-5-32-544"
 }
 
+// Windows assigns ownership of system directories, including the system drive
+// root, to this specific privileged OS service. Do not trust the service SID
+// prefix: other services do not have the same authority.
+const TRUSTED_INSTALLER_SID: &str =
+    "S-1-5-80-956008885-3418522649-1831038044-1853292631-2271478464";
+
 /// Conservatively reject all untrusted allow ACEs capable of modifying a file
 /// or replacing a directory in its ancestry. Deny ACE ordering cannot turn an
 /// otherwise rejected grant into an accepted configuration.
 fn validate_acl(owner: PSID, dacl: *const ACL, current: &str, directory: bool) -> Result<()> {
     let owner = sid_string(owner)?;
-    if !trusted_sid(&owner, current) {
+    if !trusted_sid(&owner, current) && owner != TRUSTED_INSTALLER_SID {
         bail!("broker registry object has an untrusted owner SID");
     }
     if dacl.is_null() || unsafe { IsValidAcl(dacl) } == 0 {
@@ -520,6 +526,13 @@ mod tests {
         assert!(check("O:SYD:P(A;;0x00000040;;;AU)(A;;FA;;;SY)", true).is_err());
         assert!(check("O:SYD:P(A;;SD;;;AU)(A;;FA;;;SY)", true).is_err());
         assert!(check("O:SYD:P(A;OIIO;FA;;;CO)(A;;FA;;;SY)", true).is_ok());
+        assert!(check(&format!("O:{TRUSTED_INSTALLER_SID}D:P(A;;FA;;;SY)"), true).is_ok());
+        assert!(check("O:S-1-5-80-999D:P(A;;FA;;;SY)", true).is_err());
+        assert!(check(
+            &format!("O:{TRUSTED_INSTALLER_SID}D:P(A;;SD;;;AU)(A;;FA;;;SY)"),
+            true
+        )
+        .is_err());
     }
     #[test]
     fn broker_pipe_rights_exclude_instance_creation_and_acl_mutation() {

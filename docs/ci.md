@@ -8,9 +8,9 @@ own iPhone 16 Plus simulator for iOS logic and UI tests. It never changes or
 shuts down a developer's existing simulators. Simulator result bundles are kept
 for 14 days. No hosted job requests paid inference.
 
-The repository must be committed and pushed to a GitHub remote before these
-workflows can execute. Local workflow files and passing local checks are not
-evidence of a completed GitHub Actions run.
+See [GitHub Actions](https://github.com/Beyon-Digital/control-plane/actions) for
+the current results. Local workflow files and passing local checks do not by
+themselves establish a successful hosted run.
 
 ## iPhone tests
 

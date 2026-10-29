@@ -2,6 +2,20 @@
 
 Development host: Apple Silicon macOS, Xcode 27.1, Swift 6.4, Rust 1.99.1.
 
+The first public GitHub Actions run passed the Apple simulator, macOS, Ubuntu,
+Claude sidecar, and Wayland contract jobs. Its Windows Rust job failed: one
+test supplied Unix socket paths, and four tests encountered Windows directory
+ownership validation. A follow-up run uses a named-pipe fixture and records
+runner directory ACLs; consult the current Actions results before treating
+Windows as verified. See [CI and device acceptance](ci.md).
+
+The iPhone workspace was revised after the initial device tests. On dedicated
+simulators, all three UI tests passed on iPhone 16 Plus and on iPhone SE in
+dark mode and with larger accessibility text; they cover connection, session
+navigation, and model persistence. The 47 iOS logic tests and 51 Mac Swift tests
+also passed. A disposable local adapter supplies the labeled sample
+transcript and never calls a model provider.
+
 Latest implementation run on October 29, 2026: **77 Rust tests passed** (one
 installed-Codex test is opt-in), **51 Swift tests passed with no skips**, **26
 Linux desktop contract tests**, **4 WSL transfer tests**, **5 release-tool tests**,
@@ -154,6 +168,6 @@ CONTROL_PLANE_CODEX_BIN=/absolute/path/to/codex cargo test \
 ```
 
 The CI matrix includes the real two-UID Linux broker test and bridge/portal
-contracts. No remote CI result is claimed here. See
+contracts. See the Actions link above for the latest hosted results. See
 [architecture.md](architecture.md) and [releases.md](releases.md) for remaining
 release acceptance and signing requirements.

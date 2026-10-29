@@ -196,7 +196,9 @@ import SwiftUI
             .keyboardType(.URL).textInputAutocapitalization(.never)
             #endif
           SecureField(store.apiKey(for: profile) == nil ? "API key (optional)" : "Saved key retained", text: $key)
-          Text("Changing the endpoint clears its saved key unless you enter a replacement.").font(.caption).foregroundStyle(.secondary)
+          if store.apiKey(for: profile) != nil {
+            Text("Changing the endpoint clears its saved key unless you enter a replacement.").font(.caption).foregroundStyle(.secondary)
+          }
         } else {
           Picker("ChatGPT account", selection: Binding(get: { profile.chatGPTAccountID ?? "" }, set: { profile.chatGPTAccountID = $0 })) {
             Text("Choose account").tag("")
@@ -232,7 +234,7 @@ import SwiftUI
       if let error { Section { Text(error).foregroundStyle(.red).textSelection(.enabled) } }
     }
     .formStyle(.grouped)
-    .navigationTitle(store.profiles.contains(where: { $0.id == profile.id }) ? "Edit connection" : "Add connection")
+    .navigationTitle(store.profiles.contains(where: { $0.id == profile.id }) ? "Edit model" : "Add model")
     #if os(iOS)
     .navigationBarTitleDisplayMode(.inline)
     .scrollDismissesKeyboard(.interactively)

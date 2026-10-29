@@ -47,7 +47,8 @@ jobs:
       - if: runner.os != 'Windows'
         run: python3 scripts/wsl_transfer_test.py
       - run: python3 scripts/acceptance_test.py
-      - run: python3 -m unittest discover -s helpers/linux/tests
+      - if: runner.os != 'Windows'
+        run: python3 -m unittest discover -s helpers/linux/tests
       - run: python3 -m unittest discover -s scripts/release/tests
       - run: cargo clippy --workspace --all-targets --locked -- -D warnings
   apple:
